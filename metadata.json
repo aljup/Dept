@@ -1,0 +1,6 @@
+{
+  "name": "ديوني",
+  "description": "تطبيق متكامل وحديث لإدارة الديون والمستحقات المالية وسجل المعاملات والدفعات بمصادقة آمنة وإحصائيات تفاعلية",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
