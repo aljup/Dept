@@ -2,6 +2,7 @@ package com.example.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,13 +20,22 @@ import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.TrendingDown
+import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,21 +58,25 @@ fun DebtSummaryCards(
     currency: String,
     modifier: Modifier = Modifier
 ) {
-    val numberFormatter = NumberFormat.getNumberInstance(Locale.getDefault()).apply {
-        maximumFractionDigits = 2
-        minimumFractionDigits = 0
+    var isBalanceHidden by remember { mutableStateOf(false) }
+
+    val numberFormatter = remember {
+        NumberFormat.getNumberInstance(Locale.getDefault()).apply {
+            maximumFractionDigits = 2
+            minimumFractionDigits = 0
+        }
     }
 
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Main Net Balance Card with luxury gradient
+        // Main Net Balance Card with luxury gradient & privacy toggle
         val netGradient = if (stats.netBalance >= 0) {
             Brush.linearGradient(
                 listOf(
                     Color(0xFF0F766E),
-                    Color(0xFF134E4A),
+                    Color(0xFF115E59),
                     Color(0xFF042F2E)
                 )
             )
@@ -98,7 +112,7 @@ fun DebtSummaryCards(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
-                                    .size(40.dp)
+                                    .size(42.dp)
                                     .clip(CircleShape)
                                     .background(Color.White.copy(alpha = 0.2f)),
                                 contentAlignment = Alignment.Center
@@ -113,36 +127,53 @@ fun DebtSummaryCards(
                             Spacer(modifier = Modifier.width(10.dp))
                             Column {
                                 Text(
-                                    text = "صافي الرصيد",
+                                    text = "صافي المركز المالي",
                                     fontSize = 13.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color.White.copy(alpha = 0.85f)
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White.copy(alpha = 0.9f)
                                 )
                                 Text(
-                                    text = if (stats.netBalance >= 0) "فائض مستحق لك" else "عجز مطلوب منك",
+                                    text = if (stats.netBalance >= 0) "فائض مستحق لك 🟢" else "التزامات مستحقة عليك 🔴",
                                     fontSize = 11.sp,
-                                    color = Color.White.copy(alpha = 0.7f)
+                                    color = Color.White.copy(alpha = 0.75f)
                                 )
                             }
                         }
 
-                        // Status pill
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(Color.White.copy(alpha = 0.18f))
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                        // Status pill & Privacy toggle
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Text(
-                                text = "${stats.activeCount} نشط / ${stats.paidCount} مسدد",
-                                color = Color.White,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            )
+                            IconButton(
+                                onClick = { isBalanceHidden = !isBalanceHidden },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isBalanceHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = "إخفاء/إظهار المبالغ",
+                                    tint = Color.White.copy(alpha = 0.85f),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(Color.White.copy(alpha = 0.2f))
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "${stats.activeCount} نشط • ${stats.paidCount} مسدد",
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(18.dp))
 
                     // Large Balance Figure
                     Row(
@@ -150,18 +181,20 @@ fun DebtSummaryCards(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Text(
-                            text = (if (stats.netBalance > 0) "+" else "") + numberFormatter.format(stats.netBalance),
-                            fontSize = 32.sp,
+                            text = if (isBalanceHidden) "••••••" else (if (stats.netBalance > 0) "+" else "") + numberFormatter.format(stats.netBalance),
+                            fontSize = 34.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color.White
                         )
-                        Text(
-                            text = currency,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White.copy(alpha = 0.85f),
-                            modifier = Modifier.padding(bottom = 4.dp)
-                        )
+                        if (!isBalanceHidden) {
+                            Text(
+                                text = currency,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White.copy(alpha = 0.85f),
+                                modifier = Modifier.padding(bottom = 5.dp)
+                            )
+                        }
                     }
 
                     // Repayment rate indicator
@@ -172,9 +205,9 @@ fun DebtSummaryCards(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "نسبة المعاملات المسددة",
+                            text = "معدل التحصيل والسداد",
                             fontSize = 11.sp,
-                            color = Color.White.copy(alpha = 0.8f)
+                            color = Color.White.copy(alpha = 0.85f)
                         )
                         Text(
                             text = "${(stats.paidRate * 100).toInt()}%",
@@ -197,7 +230,7 @@ fun DebtSummaryCards(
             }
         }
 
-        // Side-by-Side: Lent vs Borrowed
+        // Side-by-Side: Lent vs Borrowed with modern card outlines and vibrant icons
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -209,9 +242,12 @@ fun DebtSummaryCards(
                     .testTag("total_lent_card"),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                 ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    CreditGreen.copy(alpha = 0.3f)
+                )
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
                     Row(
@@ -221,23 +257,31 @@ fun DebtSummaryCards(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(32.dp)
+                                .size(34.dp)
                                 .clip(CircleShape)
                                 .background(CreditGreen.copy(alpha = 0.15f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.ArrowDownward,
+                                imageVector = Icons.Default.TrendingUp,
                                 contentDescription = "لك",
                                 tint = CreditGreen,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         }
-                        Text(
-                            text = "${stats.lentCount} معاملات",
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(CreditGreen.copy(alpha = 0.12f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "${stats.lentCount} معاملات",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = CreditGreen
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -249,7 +293,7 @@ fun DebtSummaryCards(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "${numberFormatter.format(stats.totalLent)} $currency",
+                        text = if (isBalanceHidden) "••••" else "${numberFormatter.format(stats.totalLent)} $currency",
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
                         color = CreditGreen
@@ -264,9 +308,12 @@ fun DebtSummaryCards(
                     .testTag("total_borrowed_card"),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                 ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    DebtRed.copy(alpha = 0.3f)
+                )
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
                     Row(
@@ -276,23 +323,31 @@ fun DebtSummaryCards(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(32.dp)
+                                .size(34.dp)
                                 .clip(CircleShape)
                                 .background(DebtRed.copy(alpha = 0.15f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.ArrowUpward,
+                                imageVector = Icons.Default.TrendingDown,
                                 contentDescription = "عليك",
                                 tint = DebtRed,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         }
-                        Text(
-                            text = "${stats.borrowedCount} معاملات",
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(DebtRed.copy(alpha = 0.12f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "${stats.borrowedCount} معاملات",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = DebtRed
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -304,7 +359,7 @@ fun DebtSummaryCards(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "${numberFormatter.format(stats.totalBorrowed)} $currency",
+                        text = if (isBalanceHidden) "••••" else "${numberFormatter.format(stats.totalBorrowed)} $currency",
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
                         color = DebtRed

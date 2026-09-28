@@ -16,12 +16,23 @@ import java.util.regex.Pattern
 
 data class AuthUiState(
     val isCheckingSession: Boolean = true,
+    val isFirstRunAdminSetupNeeded: Boolean = false,
     val isLoggedIn: Boolean = false,
     val requiresPinUnlock: Boolean = false,
     val currentUser: User? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val successMessage: String? = null,
+
+    // Admin Setup Form (First Run)
+    val adminName: String = "مشرف النظام",
+    val adminEmail: String = "admin@duyuni.app",
+    val adminPassword: String = "",
+    val adminConfirmPassword: String = "",
+    val adminPin: String = "1234",
+    val adminCurrency: String = "ر.س",
+    val adminPasswordVisible: Boolean = false,
+    val adminConfirmPasswordVisible: Boolean = false,
 
     // Login Form
     val loginEmail: String = "",
@@ -58,15 +69,24 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         sessionManager = SessionManager(application)
         authRepository = AuthRepository(db.userDao(), sessionManager)
 
-        viewModelScope.launch {
-            authRepository.ensureDefaultAdminCreated(db.debtDao())
-        }
-
         checkInitialSession()
     }
 
-    private fun checkInitialSession() {
+    fun checkInitialSession() {
         viewModelScope.launch {
+            val needsAdminSetup = authRepository.isFirstRunAdminSetupNeeded()
+            if (needsAdminSetup) {
+                _uiState.update {
+                    it.copy(
+                        isCheckingSession = false,
+                        isFirstRunAdminSetupNeeded = true,
+                        isLoggedIn = false,
+                        requiresPinUnlock = false
+                    )
+                }
+                return@launch
+            }
+
             if (authRepository.isUserLoggedIn()) {
                 val user = authRepository.getCurrentUser()
                 if (user != null) {
@@ -74,6 +94,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     _uiState.update {
                         it.copy(
                             isCheckingSession = false,
+                            isFirstRunAdminSetupNeeded = false,
                             isLoggedIn = !hasPin,
                             requiresPinUnlock = hasPin,
                             currentUser = user
@@ -81,11 +102,121 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 } else {
                     authRepository.logout()
-                    _uiState.update { it.copy(isCheckingSession = false, isLoggedIn = false) }
+                    _uiState.update {
+                        it.copy(
+                            isCheckingSession = false,
+                            isFirstRunAdminSetupNeeded = false,
+                            isLoggedIn = false
+                        )
+                    }
                 }
             } else {
-                _uiState.update { it.copy(isCheckingSession = false, isLoggedIn = false) }
+                _uiState.update {
+                    it.copy(
+                        isCheckingSession = false,
+                        isFirstRunAdminSetupNeeded = false,
+                        isLoggedIn = false
+                    )
+                }
             }
+        }
+    }
+
+    // Input handlers for Admin Setup
+    fun onAdminNameChanged(name: String) {
+        _uiState.update { it.copy(adminName = name, errorMessage = null) }
+    }
+
+    fun onAdminEmailChanged(email: String) {
+        _uiState.update { it.copy(adminEmail = email, errorMessage = null) }
+    }
+
+    fun onAdminPasswordChanged(password: String) {
+        _uiState.update { it.copy(adminPassword = password, errorMessage = null) }
+    }
+
+    fun onAdminConfirmPasswordChanged(confirm: String) {
+        _uiState.update { it.copy(adminConfirmPassword = confirm, errorMessage = null) }
+    }
+
+    fun onAdminPinChanged(pin: String) {
+        if (pin.length <= 4 && pin.all { it.isDigit() }) {
+            _uiState.update { it.copy(adminPin = pin, errorMessage = null) }
+        }
+    }
+
+    fun onAdminCurrencyChanged(currency: String) {
+        _uiState.update { it.copy(adminCurrency = currency) }
+    }
+
+    fun toggleAdminPasswordVisibility() {
+        _uiState.update { it.copy(adminPasswordVisible = !it.adminPasswordVisible) }
+    }
+
+    fun toggleAdminConfirmPasswordVisibility() {
+        _uiState.update { it.copy(adminConfirmPasswordVisible = !it.adminConfirmPasswordVisible) }
+    }
+
+    // Initial Admin Setup Action
+    fun setupInitialAdmin(onSuccess: () -> Unit) {
+        val name = _uiState.value.adminName.trim()
+        val email = _uiState.value.adminEmail.trim()
+        val password = _uiState.value.adminPassword
+        val confirm = _uiState.value.adminConfirmPassword
+        val pin = _uiState.value.adminPin.trim()
+        val currency = _uiState.value.adminCurrency
+
+        if (name.isEmpty()) {
+            _uiState.update { it.copy(errorMessage = "يرجى كتابة اسم المشرف") }
+            return
+        }
+        if (email.isEmpty() || !emailPattern.matcher(email).matches()) {
+            _uiState.update { it.copy(errorMessage = "يرجى إدخال بريد إلكتروني صالح للمشرف") }
+            return
+        }
+        if (password.length < 6) {
+            _uiState.update { it.copy(errorMessage = "كلمة مرور المشرف يجب أن لا تقل عن 6 خانات") }
+            return
+        }
+        if (password != confirm) {
+            _uiState.update { it.copy(errorMessage = "كلمتا المرور غير متطابقتين") }
+            return
+        }
+        if (pin.isNotEmpty() && pin.length != 4) {
+            _uiState.update { it.copy(errorMessage = "رمز PIN يجب أن يتكون من 4 أرقام") }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            val result = authRepository.setupInitialAdmin(
+                fullName = name,
+                email = email,
+                passwordPlain = password,
+                pinCode = pin.ifEmpty { null },
+                currency = currency
+            )
+            result.fold(
+                onSuccess = { user ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            isFirstRunAdminSetupNeeded = false,
+                            isLoggedIn = true,
+                            requiresPinUnlock = false,
+                            currentUser = user,
+                            errorMessage = null,
+                            successMessage = "تم إنشاء حساب المشرف وتهيئة النظام بنجاح!"
+                        )
+                    }
+                    onSuccess()
+                },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(isLoading = false, errorMessage = error.message ?: "تعذر تهيئة حساب المشرف")
+                    }
+                }
+            )
         }
     }
 
@@ -225,46 +356,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 onFailure = { error ->
                     _uiState.update {
                         it.copy(isLoading = false, errorMessage = error.message ?: "فشل تسجيل الدخول")
-                    }
-                }
-            )
-        }
-    }
-
-    // Quick Admin Actions
-    fun fillAdminCredentials() {
-        _uiState.update {
-            it.copy(
-                loginEmail = "admin@duyuni.app",
-                loginPassword = "admin123",
-                errorMessage = null
-            )
-        }
-    }
-
-    fun quickLoginAsAdmin(onSuccess: () -> Unit) {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            val db = AppDatabase.getDatabase(getApplication())
-            val adminUser = authRepository.ensureDefaultAdminCreated(db.debtDao())
-            val loginResult = authRepository.login(adminUser.email, "admin123")
-            loginResult.fold(
-                onSuccess = { user ->
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            isLoggedIn = true,
-                            requiresPinUnlock = false,
-                            currentUser = user,
-                            errorMessage = null,
-                            successMessage = "تم الدخول بحساب مشرف النظام بنجاح"
-                        )
-                    }
-                    onSuccess()
-                },
-                onFailure = { error ->
-                    _uiState.update {
-                        it.copy(isLoading = false, errorMessage = error.message ?: "فشل تسجيل دخول المشرف")
                     }
                 }
             )

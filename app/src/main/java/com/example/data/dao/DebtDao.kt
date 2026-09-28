@@ -39,6 +39,9 @@ interface DebtDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertDebt(debt: Debt): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertDebts(debts: List<Debt>)
+
     @Update
     suspend fun updateDebt(debt: Debt)
 

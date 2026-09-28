@@ -7,6 +7,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,23 +34,32 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,9 +72,13 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.Debt
+import com.example.ui.components.AddPersonDialog
+import com.example.ui.components.SearchablePersonPickerDialog
 import com.example.ui.theme.CreditGreen
 import com.example.ui.theme.DebtRed
+import com.example.ui.theme.PaidEmerald
 import com.example.viewmodel.DebtViewModel
+import com.example.viewmodel.PersonViewModel
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -76,12 +90,17 @@ fun AddEditDebtScreen(
     debtViewModel: DebtViewModel,
     onNavigateBack: () -> Unit,
     currency: String,
+    personViewModel: PersonViewModel? = null,
     modifier: Modifier = Modifier
 ) {
     val formState by debtViewModel.formState.collectAsState()
     val isEditing = formState.editingId != null
     val context = LocalContext.current
     val dateFormatter = SimpleDateFormat("yyyy/MM/dd", Locale.getDefault())
+
+    val personsList by (personViewModel?.personsWithSummary ?: kotlinx.coroutines.flow.MutableStateFlow(emptyList())).collectAsState()
+    var showPersonPickerDialog by remember { mutableStateOf(false) }
+    var showAddPersonDialog by remember { mutableStateOf(false) }
 
     val categories = listOf("شخصي", "عمل", "عائلي", "قرض", "سلفة", "تسوق", "عام")
 
@@ -223,30 +242,138 @@ fun AddEditDebtScreen(
                 }
             }
 
-            // Debtor / Creditor Name
-            OutlinedTextField(
-                value = formState.name,
-                onValueChange = debtViewModel::onFormNameChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("debt_name_input"),
-                label = {
-                    Text(if (formState.type == Debt.TYPE_CREDITOR) "اسم المدين (الشخص المقترض منك)" else "اسم الدائن (الشخص المقرض لك)")
-                },
-                placeholder = { Text("مثال: عبد الله خالد") },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
+            // -------------------------------------------------------------
+            // Section: تحديد الشخص أو جهة التعامل (Person Selection)
+            // -------------------------------------------------------------
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (formState.type == Debt.TYPE_CREDITOR) "المدين (الشخص المقترض منك) *" else "الدائن (الشخص المقرض لك) *",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                },
-                isError = formState.nameError != null,
-                supportingText = formState.nameError?.let { { Text(it) } },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                shape = RoundedCornerShape(14.dp)
-            )
+
+                    if (personsList.isNotEmpty()) {
+                        TextButton(
+                            onClick = { showPersonPickerDialog = true },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            Icon(imageVector = Icons.Default.People, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("دليل الأشخاص (${personsList.size})", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                // Quick Person Selection Horizontal Chips
+                if (personsList.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        personsList.forEach { pItem ->
+                            val isSelected = formState.name.trim().equals(pItem.person.name.trim(), ignoreCase = true)
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    debtViewModel.onFormNameChange(pItem.person.name)
+                                },
+                                label = {
+                                    Text(
+                                        text = pItem.person.name,
+                                        fontSize = 12.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                },
+                                leadingIcon = {
+                                    if (isSelected) {
+                                        Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(14.dp))
+                                    } else {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(18.dp)
+                                                .clip(CircleShape)
+                                                .background(MaterialTheme.colorScheme.primaryContainer),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = pItem.person.name.firstOrNull()?.toString() ?: "👤",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            )
+                        }
+                    }
+                }
+
+                // Text field with icon to open picker
+                OutlinedTextField(
+                    value = formState.name,
+                    onValueChange = debtViewModel::onFormNameChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("debt_name_input"),
+                    placeholder = { Text("اكتب الاسم أو اختر من دليل الأشخاص...") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    trailingIcon = {
+                        if (personsList.isNotEmpty()) {
+                            IconButton(onClick = { showPersonPickerDialog = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.People,
+                                    contentDescription = "اختيار من دليل الأشخاص",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    },
+                    isError = formState.nameError != null,
+                    supportingText = formState.nameError?.let { { Text(it) } },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    shape = RoundedCornerShape(14.dp)
+                )
+
+                // If user types a new name that isn't in personsList, offer to save to directory
+                val currentTrimmed = formState.name.trim()
+                val existsInDirectory = personsList.any { it.person.name.trim().equals(currentTrimmed, ignoreCase = true) }
+                if (currentTrimmed.length >= 2 && !existsInDirectory && personViewModel != null) {
+                    SuggestionChip(
+                        onClick = {
+                            personViewModel.addPerson(currentTrimmed, "", "") {}
+                        },
+                        label = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(imageVector = Icons.Default.Person, contentDescription = null, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("حفظ \"$currentTrimmed\" في دليل الأشخاص الدائم 👤", fontSize = 11.sp)
+                            }
+                        },
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                }
+            }
 
             // Amount Input
             OutlinedTextField(

@@ -1,9 +1,12 @@
 package com.example.ui.screens.auth
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,11 +20,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.Button
@@ -31,8 +39,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -50,19 +58,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.theme.CreditGreen
 import kotlinx.coroutines.delay
 
 @Composable
 fun WelcomeScreen(
     onNavigateToLogin: () -> Unit,
     onNavigateToRegister: () -> Unit,
-    onQuickAdminLogin: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var isVisible by remember { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
 
     LaunchedEffect(Unit) {
-        delay(150)
+        delay(100)
         isVisible = true
     }
 
@@ -76,24 +85,25 @@ fun WelcomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
+                .verticalScroll(scrollState)
+                .padding(horizontal = 24.dp, vertical = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Animated Branding Section
             AnimatedVisibility(
                 visible = isVisible,
-                enter = fadeIn() + slideInVertically(initialOffsetY = { -40 })
+                enter = fadeIn(tween(600)) + slideInVertically(tween(600), initialOffsetY = { -30 })
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Emblem
+                    // Modern Glowing Logo Emblem
                     Box(
                         modifier = Modifier
-                            .size(100.dp)
+                            .size(96.dp)
                             .clip(CircleShape)
                             .background(
                                 Brush.linearGradient(
@@ -110,114 +120,149 @@ fun WelcomeScreen(
                             imageVector = Icons.Default.AccountBalanceWallet,
                             contentDescription = "شعار ديوني",
                             tint = Color.White,
-                            modifier = Modifier.size(54.dp)
+                            modifier = Modifier.size(50.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(18.dp))
 
                     Text(
-                        text = "ديوني",
+                        text = "ديـونـي",
                         fontSize = 32.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.onBackground
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        letterSpacing = 1.sp
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     Text(
-                        text = "إدارة ذكية وموثوقة لجميع ديونك ومستحقاتك المالية",
-                        fontSize = 15.sp,
+                        text = "إدارتك المالية الذكية والشاملة للديون والالتزامات",
+                        fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
-                        lineHeight = 22.sp,
-                        modifier = Modifier.padding(horizontal = 16.dp)
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }
 
-            // Feature Highlights
+            Spacer(modifier = Modifier.height(28.dp))
+
+            // Modern Features Grid
             AnimatedVisibility(
                 visible = isVisible,
-                enter = fadeIn() + slideInVertically(initialOffsetY = { 40 })
+                enter = fadeIn(tween(800)) + slideInVertically(tween(800), initialOffsetY = { 40 })
             ) {
                 Column(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    FeatureRow(
+                    ModernFeatureCard(
                         icon = Icons.Default.Security,
-                        title = "قاعدة بيانات محلية آمنة 100%",
-                        description = "بياناتك مخزنة على جهازك فقط عبر SQLite دون أي تسريب"
+                        iconBg = Color(0xFF0F766E),
+                        title = "خصوصية وتشفير محلي 100%",
+                        subtitle = "بياناتك محفوظة بأمان على جهازك فقط دون الحاجة لاتصال بالإنترنت"
                     )
-                    FeatureRow(
-                        icon = Icons.Default.Lock,
-                        title = "بوابة مصادقة وحماية بالـ PIN",
-                        description = "حماية فورية لحسابك وقفل سريع بكلمة مرور أو رمز PIN"
-                    )
-                    FeatureRow(
+
+                    ModernFeatureCard(
                         icon = Icons.Default.PieChart,
-                        title = "إحصائيات ورسوم بيانية ذكية",
-                        description = "تتبع فوري لصافي المستحقات ونسب السداد بدقة"
+                        iconBg = Color(0xFF2563EB),
+                        title = "لوحة تحكم ذكية ومؤشرات مالية",
+                        subtitle = "كشف حساب مفصل ومتابعة دقيقة لما لك وما عليك ونسب السداد"
+                    )
+
+                    ModernFeatureCard(
+                        icon = Icons.Default.Backup,
+                        iconBg = Color(0xFF7C3AED),
+                        title = "نسخ احتياطي واستعادة فورية",
+                        subtitle = "تصدير واستيراد بياناتك بنقرة واحدة بصيغة JSON آمنة وموثوقة"
                     )
                 }
             }
 
+            Spacer(modifier = Modifier.height(32.dp))
+
             // Action Buttons
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+            AnimatedVisibility(
+                visible = isVisible,
+                enter = fadeIn(tween(1000))
             ) {
-                Button(
-                    onClick = onNavigateToLogin,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(54.dp)
-                        .testTag("welcome_login_button"),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text(
-                        text = "تسجيل الدخول",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                }
-
-                OutlinedButton(
-                    onClick = onNavigateToRegister,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(54.dp)
-                        .testTag("welcome_register_button"),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Text(
-                        text = "إنشاء حساب جديد",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                if (onQuickAdminLogin != null) {
-                    TextButton(
-                        onClick = onQuickAdminLogin,
+                    // Login Button
+                    Button(
+                        onClick = onNavigateToLogin,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .testTag("welcome_quick_admin_button")
-                    ) {
-                        Text(
-                            text = "الدخول المباشر بحساب المشرف ⚡",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.secondary
+                            .height(54.dp)
+                            .testTag("welcome_login_button"),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
                         )
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "تسجيل الدخول",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Icon(
+                                imageVector = Icons.Default.ArrowForward,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
-                } else {
-                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Register Button
+                    OutlinedButton(
+                        onClick = onNavigateToRegister,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(54.dp)
+                            .testTag("welcome_register_button"),
+                        shape = RoundedCornerShape(16.dp),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.5.dp,
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                        )
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PersonAdd,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = "إنشاء حساب جديد",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = "الإصدار المطور 2.5 • آمن ومشفر محلياً 🛡️",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
         }
@@ -225,49 +270,55 @@ fun WelcomeScreen(
 }
 
 @Composable
-private fun FeatureRow(
+private fun ModernFeatureCard(
     icon: ImageVector,
+    iconBg: Color,
     title: String,
-    description: String
+    subtitle: String,
+    modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
+    Surface(
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-        )
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+        ),
+        modifier = modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(iconBg.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(22.dp)
+                    tint = iconBg,
+                    modifier = Modifier.size(24.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column {
+
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = description,
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = subtitle,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 16.sp
                 )
             }
         }

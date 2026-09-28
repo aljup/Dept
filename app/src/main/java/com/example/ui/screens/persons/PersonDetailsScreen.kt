@@ -46,6 +46,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PrimaryTabRow
@@ -113,7 +114,7 @@ fun PersonDetailsScreen(
     var showEditDialog by remember { mutableStateOf(false) }
     var paymentToEdit by remember { mutableStateOf<Payment?>(null) }
     var paymentToDelete by remember { mutableStateOf<Payment?>(null) }
-    var debtToAddPaymentFor by remember { mutableStateOf<Debt?>(null) }
+    var debtItemToAddPaymentFor by remember { mutableStateOf<com.example.viewmodel.PersonDebtItem?>(null) }
 
     val numFormatter = remember {
         NumberFormat.getNumberInstance(Locale.getDefault()).apply {
@@ -375,8 +376,8 @@ fun PersonDetailsScreen(
             // Content List
             when (selectedTab) {
                 0 -> {
-                    // Debts List
-                    val debtsList = statement?.debts ?: emptyList()
+                    // Debts List with Real-time Remaining Balances and Payments
+                    val debtsList = statement?.debtsWithDetails ?: emptyList()
                     if (debtsList.isEmpty()) {
                         Box(
                             modifier = Modifier
@@ -392,89 +393,138 @@ fun PersonDetailsScreen(
                             contentPadding = PaddingValues(16.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            items(debtsList, key = { it.id }) { debt ->
+                            items(debtsList, key = { it.debt.id }) { item ->
+                                val debt = item.debt
                                 val isCreditor = debt.type == Debt.TYPE_CREDITOR
-                                val isPaid = debt.status == Debt.STATUS_PAID
+                                val isPaid = debt.status == Debt.STATUS_PAID || item.remainingAmount <= 0.0
                                 val typeColor = if (isCreditor) CreditGreen else DebtRed
 
                                 Card(
                                     shape = RoundedCornerShape(14.dp),
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp),
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable { onDebtClick(debt.id) }
                                 ) {
-                                    Row(
+                                    Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(14.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
+                                            .padding(14.dp)
                                     ) {
                                         Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(34.dp)
-                                                    .clip(CircleShape)
-                                                    .background(typeColor.copy(alpha = 0.12f)),
-                                                contentAlignment = Alignment.Center
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                                modifier = Modifier.weight(1f)
                                             ) {
-                                                Icon(
-                                                    imageVector = if (isCreditor) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
-                                                    contentDescription = null,
-                                                    tint = typeColor,
-                                                    modifier = Modifier.size(18.dp)
-                                                )
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(34.dp)
+                                                        .clip(CircleShape)
+                                                        .background(typeColor.copy(alpha = 0.12f)),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        imageVector = if (isCreditor) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
+                                                        contentDescription = null,
+                                                        tint = typeColor,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
+
+                                                Column {
+                                                    Text(
+                                                        text = if (isCreditor) "مستحق لك (إقراض)" else "التزام عليك (اقتراض)",
+                                                        fontSize = 13.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                    Text(
+                                                        text = "${dateFormatter.format(Date(debt.date))} • ${debt.category}",
+                                                        fontSize = 11.sp,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                    if (debt.notes.isNotBlank()) {
+                                                        Text(
+                                                            text = debt.notes,
+                                                            fontSize = 10.sp,
+                                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                            maxLines = 1
+                                                        )
+                                                    }
+                                                }
                                             }
 
-                                            Column {
+                                            // Amounts Column
+                                            Column(horizontalAlignment = Alignment.End) {
                                                 Text(
-                                                    text = if (isCreditor) "مستحق لك (إقراض)" else "التزام عليك (اقتراض)",
-                                                    fontSize = 13.sp,
-                                                    fontWeight = FontWeight.Bold
+                                                    text = "المتبقي: ${numFormatter.format(item.remainingAmount)} $currency",
+                                                    fontSize = 14.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (isPaid) PaidEmerald else typeColor
                                                 )
                                                 Text(
-                                                    text = "${dateFormatter.format(Date(debt.date))} • ${debt.category}",
+                                                    text = if (isPaid) "مسدد بالكامل ✓" else "الأصلي: ${numFormatter.format(debt.amount)} $currency",
                                                     fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Normal,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
-                                                if (debt.notes.isNotBlank()) {
+                                                if (item.totalPaid > 0.0 && !isPaid) {
                                                     Text(
-                                                        text = debt.notes,
+                                                        text = "سُدد منه: ${numFormatter.format(item.totalPaid)} $currency",
                                                         fontSize = 10.sp,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        maxLines = 1
+                                                        color = PaidEmerald,
+                                                        fontWeight = FontWeight.SemiBold
                                                     )
                                                 }
                                             }
                                         }
 
-                                        Column(horizontalAlignment = Alignment.End) {
-                                            Text(
-                                                text = "${numFormatter.format(debt.amount)} $currency",
-                                                fontSize = 15.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = if (isPaid) PaidEmerald else typeColor
-                                            )
-                                            Text(
-                                                text = if (isPaid) "مسدد ✓" else "نشط",
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = if (isPaid) PaidEmerald else typeColor
-                                            )
-                                            if (!isPaid) {
-                                                Spacer(modifier = Modifier.height(4.dp))
+                                        // Progress Bar if partially paid or active
+                                        if (item.totalPaid > 0.0 && !isPaid) {
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                LinearProgressIndicator(
+                                                    progress = { item.progress },
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .height(6.dp)
+                                                        .clip(RoundedCornerShape(3.dp)),
+                                                    color = PaidEmerald,
+                                                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                                                )
+                                                Text(
+                                                    text = "${(item.progress * 100).toInt()}%",
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = PaidEmerald
+                                                )
+                                            }
+                                        }
+
+                                        // Action button: + دفعة
+                                        if (!isPaid) {
+                                            Spacer(modifier = Modifier.height(10.dp))
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.End
+                                            ) {
                                                 FilledTonalButton(
-                                                    onClick = { debtToAddPaymentFor = debt },
+                                                    onClick = { debtItemToAddPaymentFor = item },
                                                     shape = RoundedCornerShape(8.dp),
-                                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
                                                 ) {
-                                                    Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(12.dp))
-                                                    Spacer(modifier = Modifier.width(2.dp))
-                                                    Text("دفعة", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                                    Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp))
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text("تسجيل دفعة سداد (${numFormatter.format(item.remainingAmount)})", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                                 }
                                             }
                                         }
@@ -604,12 +654,13 @@ fun PersonDetailsScreen(
     }
 
     // Add Payment Dialog for selected debt
-    debtToAddPaymentFor?.let { d ->
+    debtItemToAddPaymentFor?.let { item ->
+        val d = item.debt
         AddPaymentDialog(
             debtName = d.name,
-            remainingAmount = d.amount,
+            remainingAmount = item.remainingAmount,
             currency = currency,
-            onDismiss = { debtToAddPaymentFor = null },
+            onDismiss = { debtItemToAddPaymentFor = null },
             onConfirm = { amount, method, notes ->
                 debtViewModel.addPayment(
                     debtId = d.id,
@@ -618,7 +669,7 @@ fun PersonDetailsScreen(
                     method = method,
                     notes = notes
                 ) {
-                    debtToAddPaymentFor = null
+                    debtItemToAddPaymentFor = null
                 }
             }
         )

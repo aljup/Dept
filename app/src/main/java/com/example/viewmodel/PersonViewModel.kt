@@ -33,8 +33,16 @@ data class PersonItemState(
     val lastActivityDate: Long = person.createdAt
 )
 
+data class PersonDebtItem(
+    val debt: Debt,
+    val totalPaid: Double,
+    val remainingAmount: Double,
+    val progress: Float
+)
+
 data class PersonStatement(
     val person: Person,
+    val debtsWithDetails: List<PersonDebtItem> = emptyList(),
     val debts: List<Debt> = emptyList(),
     val payments: List<Payment> = emptyList(),
     val totalLent: Double = 0.0,
@@ -90,12 +98,18 @@ class PersonViewModel(application: Application) : AndroidViewModel(application) 
         _filter
     ) { personsList, debtsList, paymentsList, query, currentFilter ->
         val debtsByPerson = debtsList.groupBy { it.name.trim().lowercase() }
-        val paymentsByPerson = paymentsList.groupBy { it.personName.trim().lowercase() }
+        val paymentsByDebtId = paymentsList.groupBy { it.debtId }
+        val paymentsByPersonName = paymentsList.groupBy { it.personName.trim().lowercase() }
 
         personsList.map { person ->
             val key = person.name.trim().lowercase()
             val personDebts = debtsByPerson[key] ?: emptyList()
-            val personPayments = paymentsByPerson[key] ?: emptyList()
+            val personDebtIds = personDebts.map { it.id }.toSet()
+
+            // Combine payments matched by debtId or personName
+            val directPayments = paymentsByPersonName[key] ?: emptyList()
+            val debtIdPayments = paymentsList.filter { it.debtId in personDebtIds }
+            val allPersonPayments = (directPayments + debtIdPayments).distinctBy { it.id }
 
             var lent = 0.0
             var borrowed = 0.0
@@ -103,22 +117,26 @@ class PersonViewModel(application: Application) : AndroidViewModel(application) 
             var paidCount = 0
 
             for (d in personDebts) {
-                if (d.status == Debt.STATUS_PAID) {
+                val debtPayments = paymentsByDebtId[d.id] ?: emptyList()
+                val debtPaid = debtPayments.sumOf { it.amount }
+                val remaining = (d.amount - debtPaid).coerceAtLeast(0.0)
+
+                if (d.status == Debt.STATUS_PAID || remaining <= 0.0) {
                     paidCount++
                 } else {
                     activeCount++
                     if (d.type == Debt.TYPE_CREDITOR) {
-                        lent += d.amount
+                        lent += remaining
                     } else {
-                        borrowed += d.amount
+                        borrowed += remaining
                     }
                 }
             }
 
-            // Deduct payments from active debts amounts if needed or calculate net directly
+            // Net balance after deducting payments
             val net = lent - borrowed
             val latestDebtDate = personDebts.maxOfOrNull { it.date } ?: person.createdAt
-            val latestPaymentDate = personPayments.maxOfOrNull { it.date } ?: 0L
+            val latestPaymentDate = allPersonPayments.maxOfOrNull { it.date } ?: 0L
             val lastActive = maxOf(person.createdAt, latestDebtDate, latestPaymentDate)
 
             PersonItemState(
@@ -128,7 +146,7 @@ class PersonViewModel(application: Application) : AndroidViewModel(application) 
                 netBalance = net,
                 activeDebtsCount = activeCount,
                 paidDebtsCount = paidCount,
-                paymentsCount = personPayments.size,
+                paymentsCount = allPersonPayments.size,
                 lastActivityDate = lastActive
             )
         }.filter { item ->
@@ -161,20 +179,43 @@ class PersonViewModel(application: Application) : AndroidViewModel(application) 
         val key = person.name.trim().lowercase()
         val pDebts = debtsList.filter { it.name.trim().equals(key, ignoreCase = true) }
             .sortedByDescending { it.date }
-        val pPayments = paymentsList.filter { it.personName.trim().equals(key, ignoreCase = true) }
-            .sortedByDescending { it.date }
+        val pDebtIds = pDebts.map { it.id }.toSet()
+
+        val pPayments = paymentsList.filter {
+            it.debtId in pDebtIds || it.personName.trim().equals(key, ignoreCase = true)
+        }.distinctBy { it.id }.sortedByDescending { it.date }
+
+        val paymentsByDebtId = paymentsList.groupBy { it.debtId }
 
         var lent = 0.0
         var borrowed = 0.0
+        val debtsWithDetails = mutableListOf<PersonDebtItem>()
+
         for (d in pDebts) {
-            if (d.status == Debt.STATUS_ACTIVE) {
-                if (d.type == Debt.TYPE_CREDITOR) lent += d.amount else borrowed += d.amount
+            val debtPayments = paymentsByDebtId[d.id] ?: emptyList()
+            val debtPaid = debtPayments.sumOf { it.amount }
+            val remaining = (d.amount - debtPaid).coerceAtLeast(0.0)
+            val progress = if (d.amount > 0.0) (debtPaid / d.amount).coerceIn(0.0, 1.0).toFloat() else 1f
+
+            val isFullySettled = d.status == Debt.STATUS_PAID || remaining <= 0.0
+            if (!isFullySettled) {
+                if (d.type == Debt.TYPE_CREDITOR) lent += remaining else borrowed += remaining
             }
+
+            debtsWithDetails.add(
+                PersonDebtItem(
+                    debt = d,
+                    totalPaid = debtPaid,
+                    remainingAmount = remaining,
+                    progress = progress
+                )
+            )
         }
         val totalPaid = pPayments.sumOf { it.amount }
 
         PersonStatement(
             person = person,
+            debtsWithDetails = debtsWithDetails,
             debts = pDebts,
             payments = pPayments,
             totalLent = lent,

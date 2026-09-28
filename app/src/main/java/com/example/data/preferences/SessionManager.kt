@@ -17,6 +17,13 @@ class SessionManager(context: Context) {
         private const val KEY_HAS_PIN = "has_pin"
         private const val KEY_SAVED_PIN = "saved_pin"
         private const val KEY_CURRENCY = "user_currency"
+        private const val KEY_ADMIN_SETUP_DONE = "admin_setup_done"
+    }
+
+    fun isFirstRunAdminSetupDone(): Boolean = prefs.getBoolean(KEY_ADMIN_SETUP_DONE, false)
+
+    fun setAdminSetupDone(done: Boolean) {
+        prefs.edit().putBoolean(KEY_ADMIN_SETUP_DONE, done).apply()
     }
 
     fun saveLoginSession(userId: Long, email: String, name: String, hasPin: Boolean, pin: String? = null, currency: String = "ر.س") {

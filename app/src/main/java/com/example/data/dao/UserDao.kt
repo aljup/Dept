@@ -14,6 +14,12 @@ interface UserDao {
     @Query("SELECT * FROM users ORDER BY createdAt DESC")
     fun getAllUsers(): Flow<List<User>>
 
+    @Query("SELECT * FROM users ORDER BY createdAt DESC")
+    suspend fun getAllUsersSync(): List<User>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertUsers(users: List<User>)
+
     @Query("SELECT * FROM users WHERE email = :email LIMIT 1")
     fun getUserByEmail(email: String): Flow<User?>
 

@@ -2,6 +2,7 @@ package com.example.ui.screens.auth
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,7 +25,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Email
@@ -32,7 +33,6 @@ import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Password
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -48,7 +48,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -73,23 +72,21 @@ import com.example.ui.theme.DebtRed
 import com.example.viewmodel.AuthViewModel
 
 @Composable
-fun RegisterScreen(
+fun AdminSetupScreen(
     viewModel: AuthViewModel,
-    onNavigateBack: () -> Unit,
-    onNavigateToLogin: () -> Unit,
-    onRegisterSuccess: () -> Unit,
+    onSetupSuccess: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsState()
     val focusManager = LocalFocusManager.current
     val scrollState = rememberScrollState()
 
-    val currencies = listOf("ر.س", "$", "€", "د.إ", "د.ك", "ج.م", "د.أ", "ق.ر")
+    val currencies = listOf("ر.س", "$", "€", "د.إ", "د.ك", "ج.م", "د.أ", "ق.ر", "د.ب")
 
-    // Password strength logic
-    val passLength = state.regPassword.length
-    val hasLetters = state.regPassword.any { it.isLetter() }
-    val hasDigits = state.regPassword.any { it.isDigit() }
+    // Password strength calculation
+    val passLength = state.adminPassword.length
+    val hasLetters = state.adminPassword.any { it.isLetter() }
+    val hasDigits = state.adminPassword.any { it.isDigit() }
     val isStrong = passLength >= 8 && hasLetters && hasDigits
     val isMedium = passLength >= 6 && (hasLetters || hasDigits)
     val strengthScore = when {
@@ -121,42 +118,12 @@ fun RegisterScreen(
             .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Back Button & Login Shortcut
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                onClick = onNavigateBack,
-                modifier = Modifier.testTag("register_back_button")
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "الرجوع",
-                    tint = MaterialTheme.colorScheme.onBackground
-                )
-            }
+        Spacer(modifier = Modifier.height(10.dp))
 
-            TextButton(
-                onClick = onNavigateToLogin,
-                modifier = Modifier.testTag("header_goto_login_button")
-            ) {
-                Text(
-                    text = "تسجيل الدخول",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Hero Emblem
+        // Hero Header Badge
         Box(
             modifier = Modifier
-                .size(72.dp)
+                .size(80.dp)
                 .clip(CircleShape)
                 .background(
                     Brush.linearGradient(
@@ -170,29 +137,32 @@ fun RegisterScreen(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.Default.PersonAdd,
-                contentDescription = null,
+                imageVector = Icons.Default.AdminPanelSettings,
+                contentDescription = "تهيئة حساب المشرف",
                 tint = Color.White,
-                modifier = Modifier.size(38.dp)
+                modifier = Modifier.size(44.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "إنشاء حساب مستخدم جديد ✨",
+            text = "تهيئة حساب المشرف الرئيسي 👑",
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
+            color = MaterialTheme.colorScheme.onBackground,
+            textAlign = TextAlign.Center
         )
 
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
         Text(
-            text = "أنشئ حسابك لإدارة معاملاتك المالية بأمان محلي تام",
+            text = "مرحباً بك في تطبيق ديوني! يرجى تعيين بيانات المشرف لتأمين النظام وإدارة الحسابات بكامل الصلاحيات.",
             fontSize = 13.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            lineHeight = 19.sp,
+            modifier = Modifier.padding(horizontal = 12.dp)
         )
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -228,22 +198,15 @@ fun RegisterScreen(
             }
         }
 
-        // Section 1: User Information Card
+        // Section 1: Basic Admin Info
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-            ),
-            border = androidx.compose.foundation.BorderStroke(
-                1.dp,
-                MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
             )
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+            Column(modifier = Modifier.padding(16.dp)) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -252,141 +215,117 @@ fun RegisterScreen(
                         imageVector = Icons.Default.Person,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                     Text(
-                        text = "البيانات الشخصية",
+                        text = "معلومات المشرف",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
+                        fontSize = 15.sp,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
+                Spacer(modifier = Modifier.height(14.dp))
+
                 // Name field
                 OutlinedTextField(
-                    value = state.regName,
-                    onValueChange = viewModel::onRegNameChanged,
+                    value = state.adminName,
+                    onValueChange = viewModel::onAdminNameChanged,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("reg_name_input"),
-                    label = { Text("الاسم الكامل") },
-                    placeholder = { Text("مثال: أحمد محمد") },
+                        .testTag("admin_setup_name_input"),
+                    label = { Text("اسم المشرف الكامل") },
+                    placeholder = { Text("مثال: عبد الله الأحمد") },
                     leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                    keyboardActions = KeyboardActions(
-                        onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                    ),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
                     shape = RoundedCornerShape(14.dp)
                 )
 
+                Spacer(modifier = Modifier.height(12.dp))
+
                 // Email field
                 OutlinedTextField(
-                    value = state.regEmail,
-                    onValueChange = viewModel::onRegEmailChanged,
+                    value = state.adminEmail,
+                    onValueChange = viewModel::onAdminEmailChanged,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("reg_email_input"),
-                    label = { Text("البريد الإلكتروني") },
-                    placeholder = { Text("example@domain.com") },
+                        .testTag("admin_setup_email_input"),
+                    label = { Text("البريد الإلكتروني للمشرف") },
+                    placeholder = { Text("admin@duyuni.app") },
                     leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Email,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        Icon(Icons.Default.Email, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Email,
-                        imeAction = ImeAction.Next
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                    ),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
                     shape = RoundedCornerShape(14.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // Section 2: Security & Password Card
+        // Section 2: Security & Password
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-            ),
-            border = androidx.compose.foundation.BorderStroke(
-                1.dp,
-                MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
             )
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+            Column(modifier = Modifier.padding(16.dp)) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Lock,
+                        imageVector = Icons.Default.Security,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                     Text(
-                        text = "كلمة المرور والحماية",
+                        text = "الأمان وكلمة المرور",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
+                        fontSize = 15.sp,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
+                Spacer(modifier = Modifier.height(14.dp))
+
                 // Password field
                 OutlinedTextField(
-                    value = state.regPassword,
-                    onValueChange = viewModel::onRegPasswordChanged,
+                    value = state.adminPassword,
+                    onValueChange = viewModel::onAdminPasswordChanged,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("reg_password_input"),
-                    label = { Text("كلمة المرور") },
+                        .testTag("admin_setup_password_input"),
+                    label = { Text("كلمة مرور المشرف") },
                     leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Lock,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     },
                     trailingIcon = {
-                        IconButton(onClick = viewModel::toggleRegPasswordVisibility) {
+                        IconButton(onClick = viewModel::toggleAdminPasswordVisibility) {
                             Icon(
-                                imageVector = if (state.regPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                imageVector = if (state.adminPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                 contentDescription = "إظهار/إخفاء"
                             )
                         }
                     },
                     singleLine = true,
-                    visualTransformation = if (state.regPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Password,
-                        imeAction = ImeAction.Next
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                    ),
+                    visualTransformation = if (state.adminPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
                     shape = RoundedCornerShape(14.dp)
                 )
 
-                if (state.regPassword.isNotEmpty()) {
+                if (state.adminPassword.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
                     LinearProgressIndicator(
                         progress = { strengthScore },
                         modifier = Modifier
@@ -396,6 +335,7 @@ fun RegisterScreen(
                         color = strengthColor,
                         trackColor = MaterialTheme.colorScheme.surfaceVariant
                     )
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = strengthLabel,
                         fontSize = 11.sp,
@@ -404,77 +344,67 @@ fun RegisterScreen(
                     )
                 }
 
+                Spacer(modifier = Modifier.height(12.dp))
+
                 // Confirm Password field
                 OutlinedTextField(
-                    value = state.regConfirmPassword,
-                    onValueChange = viewModel::onRegConfirmPasswordChanged,
+                    value = state.adminConfirmPassword,
+                    onValueChange = viewModel::onAdminConfirmPasswordChanged,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("reg_confirm_password_input"),
+                        .testTag("admin_setup_confirm_password_input"),
                     label = { Text("تأكيد كلمة المرور") },
                     leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Password,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        Icon(Icons.Default.Password, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    },
+                    trailingIcon = {
+                        IconButton(onClick = viewModel::toggleAdminConfirmPasswordVisibility) {
+                            Icon(
+                                imageVector = if (state.adminConfirmPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = "إظهار/إخفاء"
+                            )
+                        }
                     },
                     singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Password,
-                        imeAction = ImeAction.Next
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                    ),
+                    visualTransformation = if (state.adminConfirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
                     shape = RoundedCornerShape(14.dp)
                 )
 
-                // Optional PIN
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Admin PIN field
                 OutlinedTextField(
-                    value = state.regPin,
-                    onValueChange = viewModel::onRegPinChanged,
+                    value = state.adminPin,
+                    onValueChange = viewModel::onAdminPinChanged,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("reg_pin_input"),
-                    label = { Text("رمز PIN السريع (اختياري - 4 أرقام)") },
+                        .testTag("admin_setup_pin_input"),
+                    label = { Text("رمز القفل السريع PIN (4 أرقام)") },
                     placeholder = { Text("1234") },
                     leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Security,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        Icon(Icons.Default.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.NumberPassword,
-                        imeAction = ImeAction.Done
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onDone = {
-                            focusManager.clearFocus()
-                            viewModel.register(onRegisterSuccess)
-                        }
-                    ),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = {
+                        focusManager.clearFocus()
+                        viewModel.setupInitialAdmin(onSetupSuccess)
+                    }),
                     shape = RoundedCornerShape(14.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // Section 3: Currency Picker Card
+        // Section 3: Preferred Currency
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-            ),
-            border = androidx.compose.foundation.BorderStroke(
-                1.dp,
-                MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
             )
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -486,39 +416,39 @@ fun RegisterScreen(
                         imageVector = Icons.Default.AttachMoney,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                     Text(
-                        text = "عملة الحساب المفضلة",
+                        text = "العملة الافتراضية للنظام",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
+                        fontSize = 15.sp,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     currencies.take(5).forEach { curr ->
-                        val isSelected = state.regCurrency == curr
+                        val isSelected = state.adminCurrency == curr
                         Surface(
                             shape = RoundedCornerShape(10.dp),
                             color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
                             modifier = Modifier
                                 .weight(1f)
                                 .height(38.dp)
-                                .clickable { viewModel.onRegCurrencyChanged(curr) },
-                            border = if (!isSelected) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)) else null
+                                .clickable { viewModel.onAdminCurrencyChanged(curr) },
+                            border = if (!isSelected) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)) else null
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Text(
                                     text = curr,
                                     color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    fontSize = 12.sp
+                                    fontSize = 13.sp
                                 )
                             }
                         }
@@ -529,21 +459,19 @@ fun RegisterScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Register Button
+        // Submit Button
         Button(
             onClick = {
                 focusManager.clearFocus()
-                viewModel.register(onRegisterSuccess)
+                viewModel.setupInitialAdmin(onSetupSuccess)
             },
             enabled = !state.isLoading,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(52.dp)
-                .testTag("submit_register_button"),
-            shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            )
+                .height(54.dp)
+                .testTag("submit_admin_setup_button"),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
         ) {
             if (state.isLoading) {
                 CircularProgressIndicator(
@@ -556,14 +484,9 @@ fun RegisterScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Icon(imageVector = Icons.Default.Check, contentDescription = null)
                     Text(
-                        text = "إنشاء الحساب الآن",
+                        text = "حفظ حساب المشرف وبدء الاستخدام",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimary
@@ -574,25 +497,28 @@ fun RegisterScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Login link
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+        // Offline Guarantee Pill
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text(
-                text = "لديك حساب بالفعل؟",
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            TextButton(
-                onClick = onNavigateToLogin,
-                modifier = Modifier.testTag("goto_login_button")
+            Row(
+                modifier = Modifier.padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
             ) {
+                Icon(
+                    imageVector = Icons.Default.Security,
+                    contentDescription = null,
+                    tint = CreditGreen,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "تسجيل الدخول",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    text = "جميع بياناتك مشفرة ومحفوظة محلياً 100% بأمان تام",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

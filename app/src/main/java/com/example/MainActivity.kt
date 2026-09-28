@@ -38,6 +38,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.data.model.Debt
 import com.example.data.model.Person
 import com.example.ui.screens.admin.AdminPanelScreen
+import com.example.ui.screens.auth.AdminSetupScreen
 import com.example.ui.screens.auth.LoginScreen
 import com.example.ui.screens.auth.PinUnlockScreen
 import com.example.ui.screens.auth.RegisterScreen
@@ -53,6 +54,7 @@ import com.example.viewmodel.DebtViewModel
 import com.example.viewmodel.PersonViewModel
 
 sealed interface Screen {
+    data object AdminSetup : Screen
     data object Welcome : Screen
     data object Login : Screen
     data object Register : Screen
@@ -111,14 +113,15 @@ fun DebtManagerApp(
     }
 
     // Synchronize initial auth state with navigation destination
-    LaunchedEffect(authState.isCheckingSession, authState.isLoggedIn, authState.requiresPinUnlock) {
+    LaunchedEffect(authState.isCheckingSession, authState.isFirstRunAdminSetupNeeded, authState.isLoggedIn, authState.requiresPinUnlock) {
         if (!authState.isCheckingSession) {
             when {
+                authState.isFirstRunAdminSetupNeeded -> currentScreen = Screen.AdminSetup
                 authState.requiresPinUnlock -> currentScreen = Screen.PinUnlock
                 authState.isLoggedIn -> currentScreen = Screen.Dashboard
                 else -> {
-                    // Only reset to Welcome if not already in Login/Register
-                    if (currentScreen != Screen.Login && currentScreen != Screen.Register) {
+                    // Only reset to Welcome if not already in Login/Register/AdminSetup
+                    if (currentScreen != Screen.Login && currentScreen != Screen.Register && currentScreen != Screen.AdminSetup) {
                         currentScreen = Screen.Welcome
                     }
                 }
@@ -189,15 +192,17 @@ fun DebtManagerApp(
         label = "screen_transition"
     ) { screen ->
         when (screen) {
+            Screen.AdminSetup -> {
+                AdminSetupScreen(
+                    viewModel = authViewModel,
+                    onSetupSuccess = { currentScreen = Screen.Dashboard }
+                )
+            }
+
             Screen.Welcome -> {
                 WelcomeScreen(
                     onNavigateToLogin = { currentScreen = Screen.Login },
-                    onNavigateToRegister = { currentScreen = Screen.Register },
-                    onQuickAdminLogin = {
-                        authViewModel.quickLoginAsAdmin {
-                            currentScreen = Screen.Dashboard
-                        }
-                    }
+                    onNavigateToRegister = { currentScreen = Screen.Register }
                 )
             }
 
@@ -314,6 +319,7 @@ fun DebtManagerApp(
                 PersonDetailsScreen(
                     person = screen.person,
                     personViewModel = personViewModel,
+                    debtViewModel = debtViewModel,
                     currency = authState.currentUser?.currency ?: debtViewModel.getCurrency(),
                     onNavigateBack = { currentScreen = Screen.Dashboard },
                     onDebtClick = { debtId -> currentScreen = Screen.DebtDetails(debtId) },

@@ -99,28 +99,83 @@ class AuthRepository(
         userDao.updatePinCode(userId, newPin)
     }
 
-    suspend fun ensureDefaultAdminCreated(debtDao: com.example.data.dao.DebtDao? = null): User = withContext(Dispatchers.IO) {
-        val adminEmail = "admin@duyuni.app"
-        val existing = userDao.getUserByEmailSync(adminEmail)
-            ?: userDao.getUserByEmailSync("admin@admin.com")
+    suspend fun isFirstRunAdminSetupNeeded(): Boolean = withContext(Dispatchers.IO) {
+        val userCount = userDao.countUsers()
+        userCount == 0 || !sessionManager.isFirstRunAdminSetupDone()
+    }
 
-        // Clean up any old mock debts from previous tests
-        debtDao?.purgeSampleDebts()
-
+    suspend fun setupInitialAdmin(
+        fullName: String,
+        email: String,
+        passwordPlain: String,
+        pinCode: String? = null,
+        currency: String = "ر.س"
+    ): Result<User> = withContext(Dispatchers.IO) {
+        val normalizedEmail = email.trim().lowercase()
+        val existing = userDao.getUserByEmailSync(normalizedEmail)
         if (existing != null) {
-            return@withContext existing
+            // Update existing or create
+            val passwordHash = hashPassword(passwordPlain)
+            val updatedUser = existing.copy(
+                fullName = fullName.trim().ifEmpty { "مشرف النظام" },
+                passwordHash = passwordHash,
+                pinCode = pinCode?.trim()?.ifEmpty { null },
+                currency = currency,
+                role = User.ROLE_ADMIN
+            )
+            userDao.updateUser(updatedUser)
+            sessionManager.setAdminSetupDone(true)
+            sessionManager.saveLoginSession(
+                userId = updatedUser.id,
+                email = updatedUser.email,
+                name = updatedUser.fullName,
+                hasPin = !updatedUser.pinCode.isNullOrEmpty(),
+                pin = updatedUser.pinCode,
+                currency = currency
+            )
+            return@withContext Result.success(updatedUser)
         }
 
-        val adminPasswordHash = hashPassword("admin123")
+        val passwordHash = hashPassword(passwordPlain)
         val adminUser = User(
-            fullName = "مشرف النظام",
-            email = adminEmail,
-            passwordHash = adminPasswordHash,
-            pinCode = "1234",
-            currency = "ر.س"
+            fullName = fullName.trim().ifEmpty { "مشرف النظام" },
+            email = normalizedEmail,
+            passwordHash = passwordHash,
+            pinCode = pinCode?.trim()?.ifEmpty { null },
+            currency = currency,
+            role = User.ROLE_ADMIN
         )
-        val adminId = userDao.insertUser(adminUser)
-        adminUser.copy(id = adminId)
+
+        try {
+            val generatedId = userDao.insertUser(adminUser)
+            val createdAdmin = adminUser.copy(id = generatedId)
+            sessionManager.setAdminSetupDone(true)
+            sessionManager.saveLoginSession(
+                userId = generatedId,
+                email = normalizedEmail,
+                name = createdAdmin.fullName,
+                hasPin = !createdAdmin.pinCode.isNullOrEmpty(),
+                pin = createdAdmin.pinCode,
+                currency = currency
+            )
+            Result.success(createdAdmin)
+        } catch (e: Exception) {
+            Result.failure(Exception("فشل إعداد حساب المشرف: ${e.message}"))
+        }
+    }
+
+    suspend fun ensureDefaultAdminCreated(debtDao: com.example.data.dao.DebtDao? = null): User? = withContext(Dispatchers.IO) {
+        // Clean up any old mock debts
+        debtDao?.purgeSampleDebts()
+        
+        val userCount = userDao.countUsers()
+        if (userCount > 0) {
+            val adminEmail = "admin@duyuni.app"
+            return@withContext userDao.getUserByEmailSync(adminEmail)
+                ?: userDao.getUserByEmailSync("admin@admin.com")
+                ?: userDao.getAllUsersSync().firstOrNull()
+        }
+        null
     }
 
     suspend fun getCurrentUser(): User? = withContext(Dispatchers.IO) {

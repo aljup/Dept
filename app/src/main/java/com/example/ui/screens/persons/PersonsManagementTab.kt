@@ -488,6 +488,22 @@ private fun PersonCard(
                         color = DebtRed
                     )
                 }
+
+                if (item.paymentsCount > 0) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(PaidEmerald.copy(alpha = 0.08f))
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = "${item.paymentsCount} دفعات ✓",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = PaidEmerald
+                        )
+                    }
+                }
             }
 
             if (person.notes.isNotBlank()) {
